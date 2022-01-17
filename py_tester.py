@@ -1,9 +1,9 @@
 from pydantic import BaseModel as PydanticBaseModel
 import inspect
-
 from typing import Any, Optional
-
 from copy import deepcopy
+import pytest
+
 
 class BaseModel(PydanticBaseModel):
     class Config:
@@ -37,88 +37,75 @@ class AdvancedBaseModel(BaseModel):
                     fields.pop(field_name)
                     if field_name in fields_set:
                         fields_set.remove(field_name)
-        setattr(self, "__annotations__", annotations)
-        setattr(self, "__fields__", fields)
+        # object.__setattr__(self, "__annotations__", annotations)
+        # object.__setattr__(self, "__fields__", fields)
         object.__setattr__(self, "__fields_set__", fields_set)
     
     # def dict(self, *args: Any, **kwargs: Any):
     #     return self.dict(*args, **kwargs, exclude_unset=True)
 
-"""
-OUTER IS ADV BASE MODEL
-"""
 
-class Inner(BaseModel):
-    e: int
-    f: Optional[int]
-    g: Optional[str] # skip
+def test_outer_skip():
+    # Outer model is modified 
+    class Inner(BaseModel):
+        e: int
+        f: Optional[int]
+        g: Optional[str] # skip
 
-class T(AdvancedBaseModel):
-    a: str
-    b: Optional[str]
-    c: Optional[str] # skip
-    d: Inner
+    class Outer(AdvancedBaseModel):
+        a: str
+        b: Optional[str]
+        c: Optional[str] # skip
+        d: Inner
 
-t = T(a=1,d=Inner(e=1,f=2))
-t1 = T(a=1, c=None, d=Inner(e=1,f=2))
-t2 = T(a=1, c=2, d=Inner(e=1,f=2))
+    t = Outer(a=1,d=Inner(e=1,f=2))
+    t1 = Outer(a=1, c=None, d=Inner(e=1,f=2))
+    t2 = Outer(a=1, c=2, d=Inner(e=1,f=2))
 
-print("outer skip")
-print(t.dict())
-# print(t.__fields__)
-# print(t.__fields_set__)
-print(t1.dict())
-# print(t.__fields__)
-# print(t1.__fields_set__)
-print(t2.dict())
-# print(t.__fields__)
-# print(t2.__fields_set__)
-
-"""
-BOTH ADV BASE MODEL
-"""
-
-class Inner(AdvancedBaseModel):
-    e: int
-    f: Optional[int]
-    g: Optional[str] # skip
-
-class T(AdvancedBaseModel):
-    a: str
-    b: Optional[str]
-    c: Optional[str] # skip
-    d: Inner
-
-t = T(a=1,d=Inner(e=1,f=2))
-t1 = T(a=1, c=None, d=Inner(e=1,f=2))
-t2 = T(a=1, c=2, d=Inner(e=1,f=2))
-
-print("both skip")
-print(t.dict())
-print(t1.dict())
-print(t2.dict())
-
-"""
-INNER IS ADV BASE MODEL
-"""
+    # skip c if assigned as None
+    assert t.dict() == {'a': '1', 'b': None, 'd': {'e': 1, 'f': 2, 'g': None}}
+    assert t1.dict() == {'a': '1', 'b': None, 'd': {'e': 1, 'f': 2, 'g': None}}
+    assert t2.dict() == {'a': '1', 'b': None, 'c': '2', 'd': {'e': 1, 'f': 2, 'g': None}}
 
 
-class Inner(AdvancedBaseModel):
-    e: int
-    f: Optional[int]
-    g: Optional[str] # skip
+def test_inner_skip():
+    class Inner(AdvancedBaseModel):
+        e: int
+        f: Optional[int]
+        g: Optional[str] # skip
 
-class T(BaseModel):
-    a: str
-    b: Optional[str]
-    c: Optional[str] # skip
-    d: Inner
+    class Outer(BaseModel):
+        a: str
+        b: Optional[str]
+        c: Optional[str] # skip
+        d: Inner
 
-t = T(a=1,d=Inner(e=1,f=2))
-t1 = T(a=1, c=None, d=Inner(e=1,f=2))
-t2 = T(a=1, c=2, d=Inner(e=1,f=2))
+    t = Outer(a=1,d=Inner(e=1,f=2))
+    t1 = Outer(a=1, c=None, d=Inner(e=1,f=2))
+    t2 = Outer(a=1, c=2, d=Inner(e=1,f=2))
+    
+    assert t.dict() == {'a': '1', 'b': None, 'c': None, 'd': {'e': 1, 'f': 2}}
+    assert t1.dict() == {'a': '1', 'b': None, 'c': None, 'd': {'e': 1, 'f': 2}}
+    assert t2.dict() == {'a': '1', 'b': None, 'c': '2', 'd': {'e': 1, 'f': 2}}
+  
+def test_both_skip():
+    # Both models are modified 
+    class Inner(AdvancedBaseModel):
+        e: int
+        f: Optional[int]
+        g: Optional[str] # skip
 
-print("inner skip")
-print(t.dict())
-print(t1.dict())
-print(t2.dict())
+    class Outer(AdvancedBaseModel):
+        a: str
+        b: Optional[str]
+        c: Optional[str] # skip
+        d: Inner
+
+    t = Outer(a=1,d=Inner(e=1,f=2))
+    t1 = Outer(a=1, c=None, d=Inner(e=1,f=2))
+    t2 = Outer(a=1, c=2, d=Inner(e=1,f=2))
+
+    # skip c and g if assigned as None
+    assert t.dict() == {'a': '1', 'b': None, 'd': {'e': 1, 'f': 2}}
+    assert t1.dict() == {'a': '1', 'b': None, 'd': {'e': 1, 'f': 2}}
+    assert t2.dict() == {'a': '1', 'b': None, 'c': '2', 'd': {'e': 1, 'f': 2}}
