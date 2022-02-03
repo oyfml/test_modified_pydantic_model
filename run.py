@@ -175,6 +175,7 @@ def test_assignment_skip():
     assert t.dict() == {'a': '1', 'b': "string", 'c': "string2", 'd': "string3"}
     assert t1.dict() == {'a': '1', 'b': None, 'd': "string3"}
 
+
 def test_multi_line_skip():
     class A(AdvancedBaseModel):
         some_very_long_attribute_name_dont_ask_why: Skip(Optional[List[List[List[List[List[List[
