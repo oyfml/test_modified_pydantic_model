@@ -154,3 +154,18 @@ def test_nested_skip():
     assert t.dict() == {'a': '1', 'b': None}
     assert t1.dict() == {'a': '1', 'b': None}
     assert t2.dict() == {'a': '1', 'b': None, 'c': {'e': 1, 'f': 2, 'g': None}}
+
+
+def test_multi_line_skip():
+    class A(AdvancedBaseModel):
+        some_very_long_attribute_name_dont_ask_why: Skip(Optional[List[List[List[List[List[List[
+            str
+        ]]]]]]])
+
+    t = A()
+    t1 = A(some_very_long_attribute_name_dont_ask_why=None)
+    t2 = A(some_very_long_attribute_name_dont_ask_why=[[[[[["Test", "123"]]]]]])
+    
+    assert t.dict() == {}
+    assert t1.dict() == {}
+    assert t2.dict() == {'some_very_long_attribute_name_dont_ask_why': [[[[[["Test", "123"]]]]]]}
