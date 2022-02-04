@@ -16,7 +16,7 @@ class ExampleModel(AdvancedBaseModel):
 ```
 
 ## Installation
-`pip install requirements.txt`
+`pip install -r requirements.txt`
 
 ## Run Test Cases
 `pytest run.py`
