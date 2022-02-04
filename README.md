@@ -17,7 +17,7 @@ class ExampleModel(AdvancedBaseModel):
 ## Installation
 `pip install requirements.txt`
 
-## Run
+## Run Test Cases
 `pytest run.py`
 
 ## Context
