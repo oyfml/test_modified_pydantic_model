@@ -9,9 +9,10 @@
 Inherit modified class and annotation with Skip function wrapping field type
 ```
 class ExampleModel(AdvancedBaseModel):
-    a: Skip(Optional[str]) # optional key
-    b: Optional[type] # optional value but mandatory key
-    c: Skip(str) # does nothing
+    a: Skip(Optional[List[str]) # optional key
+    b: Skip(Optional[str], default="sample_string") # optional key with default value
+    c: Optional[type] # optional value but mandatory key
+    d: Skip(str) # does nothing
 ```
 
 ## Installation
