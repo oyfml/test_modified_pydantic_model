@@ -1,9 +1,8 @@
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic.main import ModelMetaclass
 
 import inspect
-from typing import Any, Optional, Union, List, _GenericAlias
-from enum import Enum, EnumMeta
+from typing import Any, Optional, Union, List
+from enum import Enum
 
 import ast
 import textwrap
@@ -207,4 +206,6 @@ def test_nested_optional_skip():
     t3 = OM(c= [None, None, None])
 
     assert t.dict() == {}
-    assert t2.dict() == {'c': [None, None, None]}
+    assert t1.dict() == {'a': '1', 'b': [None, '123', None], 'c': [[], None]}
+    assert t2.dict() ==  {'b': [], 'c': [['123', '456']]}
+    assert t3.dict() == {'c': [None, None, None]}
