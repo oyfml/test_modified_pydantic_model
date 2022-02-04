@@ -1,0 +1,2 @@
+pytest==6.2.4
+pydantic==1.8.2
