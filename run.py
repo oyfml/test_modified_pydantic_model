@@ -2,7 +2,7 @@ from pydantic import BaseModel as PydanticBaseModel
 from pydantic.main import ModelMetaclass
 
 import inspect
-from typing import Any, Optional, List, _GenericAlias
+from typing import Any, Optional, Union, List, _GenericAlias
 from enum import Enum, EnumMeta
 
 import ast
@@ -172,6 +172,7 @@ def test_assignment_skip():
 
     t = Test(a=1)
     t1 = Test(a=1, b=None, c=None)
+
     assert t.dict() == {'a': '1', 'b': "string", 'c': "string2", 'd': "string3"}
     assert t1.dict() == {'a': '1', 'b': None, 'd': "string3"}
 
@@ -190,3 +191,31 @@ def test_multi_line_skip():
     assert t1.dict() == {}
     assert t2.dict() == {'some_very_long_attribute_name_dont_ask_why': [[[[[["Test", "123"]]]]]]}
 
+
+def test_union_skip():
+    class UnionTest(AdvancedBaseModel):
+        a: Skip(Union[str, int, None])
+        b: Skip(Optional[List[Union[str, None]]])
+
+    t = UnionTest()
+    t1 = UnionTest(a=1, b=[None, "123", None])
+    t2 = UnionTest(b=[])
+
+    assert t.dict() == {}
+    assert t1.dict() == {'a': '1', 'b': [None, '123', None]}
+    assert t2.dict() == {'b': []}
+
+
+def test_nested_optional_skip():
+    class OM(AdvancedBaseModel):
+        a: Skip(Optional[Optional[str]])
+        b: Skip(Optional[List[Optional[str]]])
+        c: Skip(Optional[List[Optional[List[str]]]])
+
+    t = OM()
+    t1 = OM(a=1, b=[None, "123", None], c=[[], None])
+    t2 = OM(b=[], c=[["123", "456"]])
+    t3 = OM(c= [None, None, None])
+
+    assert t.dict() == {}
+    assert t2.dict() == {'c': [None, None, None]}
