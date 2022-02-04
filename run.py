@@ -25,18 +25,7 @@ class BaseModel(PydanticBaseModel):
         return hash(repr((type(self),) + tuple(self.__dict__.values())))
 
 def Skip(_type: Any, default=None):
-    # does nothing but annotates
-    if isinstance(_type,
-        (
-            ModelMetaclass,
-            type,
-            _GenericAlias,
-            EnumMeta
-        )
-    ):
-        return _type
-    else:
-        raise ValueError("argument must be valid type")
+    return _type
 
 class AdvancedBaseModel(BaseModel):
     def __init__(self, *args: Any, **kwargs: Any):
