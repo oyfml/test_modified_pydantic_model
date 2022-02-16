@@ -1,4 +1,5 @@
 from pydantic import BaseModel as PydanticBaseModel
+from pydantic import ValidationError
 
 import inspect
 from typing import Any, Optional, Union, List
@@ -26,32 +27,42 @@ class BaseModel(PydanticBaseModel):
 def Skip(_type: Any, default=None):
     return _type
 
+SKIP_KEYWORD = "Skip"
+
+from copy import deepcopy
+
 class AdvancedBaseModel(BaseModel):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__( *args, **kwargs)        
+   def __init__(self, *args: Any, **kwargs: Any):
+        super().__init__(*args, **kwargs)
         # parse class definition's abstract syntax tree after removing indentation
-        cls_def: ast.ClassDef = ast.parse(textwrap.dedent(inspect.getsource(self.__class__))).body[0]
+        cls_def = [
+            i
+            for i in ast.parse(textwrap.dedent(inspect.getsource(self.__class__))).body
+            if isinstance(i, ast.ClassDef)
+        ][0]
         # get all assignments with type annotation under class; i.e. x: int or y: str = 1
-        ann_assign_list: List[ast.AnnAssign] = filter(lambda x: isinstance(x, ast.AnnAssign), cls_def.body)
+        ann_assign_list = [i for i in cls_def.body if isinstance(i, ast.AnnAssign)]
         for ann_assign in ann_assign_list:
             # look for annotations wrapped with Skip function
             if isinstance(ann_assign.annotation, ast.Call):
-                func_name_obj: ast.Name = ann_assign.annotation.func
-                field_name_obj: ast.Name = ann_assign.target
-                if func_name_obj.id == "Skip":
+                func_name_obj: ast.Name = ann_assign.annotation.__getattribute__("func")
+                field_name_obj: ast.Name = ann_assign.__getattribute__("target")
+                if func_name_obj.id == SKIP_KEYWORD:
                     field_name = field_name_obj.id
-                    # overwrite with default value
+                    # overwrite with default value if field not set in call signature
                     if field_name not in self.__fields_set__:
-                        if (
-                            len(ann_assign.annotation.keywords) > 0
-                        ):
-                            keyword = [kw for kw in ann_assign.annotation.keywords if kw.arg == "default"][0]
-                            self.__dict__[field_name] = keyword.value.value
-                        elif (
-                            len(ann_assign.annotation.args) == 2
-                        ):
-                            constant = ann_assign.annotation.args[-1]
-                            self.__dict__[field_name] = constant.value
+                        # 'default' kwarg or arg
+                        if len(ann_assign.annotation.keywords) > 0:
+                            keyword = [
+                                kw
+                                for kw in ann_assign.annotation.keywords
+                                if kw.arg == "default"
+                            ][0]
+                            self.__setattr__(field_name, ast.literal_eval(keyword.value))
+                        elif len(ann_assign.annotation.args) == 2:
+                             self.__setattr__(field_name, ast.literal_eval(
+                                ann_assign.annotation.args[-1]
+                            ))
                     # remove key field if optional and unset
                     if (
                         not self.__fields__[field_name].required
@@ -209,3 +220,25 @@ def test_nested_optional_skip():
     assert t1.dict() == {'a': '1', 'b': [None, '123', None], 'c': [[], None]}
     assert t2.dict() ==  {'b': [], 'c': [['123', '456']]}
     assert t3.dict() == {'c': [None, None, None]}
+
+
+def test_default_skip():
+    class DefaultModel(AdvancedBaseModel):
+        a: Skip(Optional[str])
+        b: Skip(Optional[str], None)
+        c: Skip(Optional[List[str]], [1,2,3])
+        d: Skip(Union[str, int, None], default=1)
+
+    t = DefaultModel()
+    t1 = DefaultModel(a=1, c=[], d=None)
+    t2 = DefaultModel(b="", c=None, d="letter_d")
+
+    try:
+        DefaultModel(c=[None, 1, 2])
+    except Exception as error:
+        return
+
+    assert t.dict() ==  {'c': ['1', '2', '3'], 'd': '1'}
+    assert t1.dict() == {'a': '1', 'c': []}
+    assert t2.dict() ==  {'b': '', 'd': 'letter_d'}
+    assert error == ValidationError(model='DefaultModel', errors=[{'loc': ('c', 0), 'msg': 'none is not an allowed value', 'type': 'type_error.none.not_allowed'}])
